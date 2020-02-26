@@ -3,7 +3,7 @@ package src_menor_molinero_alejandro;
 import ontology.Types.ACTIONS;
 import tools.Vector2d;
 
-import java.util.ArrayList;
+import java.util.*;
 
 
 public class AStar {
@@ -17,13 +17,45 @@ public class AStar {
         this.end = end;
     }
 
-    public ArrayList<ACTIONS> computePlan(){
+    public Stack<ACTIONS> computePlan(){
+        Node firstNode = new Node(start, grid, 0, end, null, null);
+
+        PriorityQueue<Node> frontier = new PriorityQueue<>();
+        Set<Node> explored = new HashSet<>();
+
+        frontier.add(firstNode);
+
+        while (!frontier.isEmpty()){
+            Node bestNode = frontier.remove();
+            if (bestNode.isGoal())
+                return getPlanFromGoalNode(bestNode);
+
+            if (!explored.contains(bestNode)){
+                ArrayList<Node> nodeOffSpring = bestNode.generateOffSpring();
+
+                frontier.addAll(nodeOffSpring);
+                explored.add(bestNode);
+            }
+        }
+
         return null;
+    }
+
+    private Stack<ACTIONS> getPlanFromGoalNode (Node node){
+       Stack<ACTIONS> toReturn = new Stack<>();
+
+       toReturn.push(ACTIONS.ACTION_NIL);
+       while (node != null){
+           toReturn.push(node.getLastAction());
+           node = node.getFather();
+       }
+
+       return toReturn;
     }
 
 }
 
-class Node {
+class Node implements Comparable<Node>{
     private Vector2d position;
     private char [][] grid;
     private int coste;
@@ -38,12 +70,24 @@ class Node {
         this.coste = coste;
         this.end = end;
         this.lastAction = lastAction;
-
+        this.father = father;
         computeManhattan();
     }
 
+    public boolean isGoal (){
+        return position.equals(end);
+    }
+
+    public Node getFather(){
+        return father;
+    }
+
+    public ACTIONS getLastAction(){
+        return lastAction;
+    }
+
     public ArrayList<Node> generateOffSpring(){
-        ArrayList<Node> offSpring = new ArrayList<Node>();
+        ArrayList<Node> offSpring = new ArrayList<>();
 
         Node upNode = generateNode(ACTIONS.ACTION_UP);
         if (upNode != null)
@@ -76,10 +120,10 @@ class Node {
                 x--;
                 break;
             case ACTION_UP:
-                y++;
+                y--;
                 break;
             case ACTION_DOWN:
-                y--;
+                y++;
                 break;
         }
 
@@ -101,4 +145,24 @@ class Node {
     }
 
 
+    @Override
+    public int compareTo(Node node) {
+        return (coste + manhattan) - (node.coste + node.manhattan);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Node node = (Node) o;
+        return position.equals(node.position);
+    }
+
+    @Override
+    public int hashCode() {
+        int [] arr = new int[2];
+        arr[0] = (int) position.x;
+        arr[1] = (int) position.y;
+        return Arrays.hashCode(arr);
+    }
 }

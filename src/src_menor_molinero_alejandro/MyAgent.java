@@ -9,18 +9,32 @@ import tools.Vector2d;
 
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.Stack;
 
 public class MyAgent extends AbstractPlayer{
 
     private char [][] myGrid;
-    ArrayList<ACTIONS> plan;
+    Stack<ACTIONS> plan;
     Vector2d doorPosition;
 
     public MyAgent(StateObservation stateObs, ElapsedCpuTimer elapsedTimer){
-        plan = new ArrayList<ACTIONS>();
+
         generateStaticMap(stateObs);
 
         printGrid();
+    }
+
+    @Override
+    public ACTIONS act(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
+        if (plan == null) {
+            Vector2d current = transformPixelToGridValues(stateObs.getAvatarPosition());
+            AStar searchAlgorithm = new AStar(myGrid, current, doorPosition);
+            plan = searchAlgorithm.computePlan();
+        }
+        else if (plan.isEmpty())
+            return ACTIONS.ACTION_NIL;
+
+        return plan.pop();
     }
 
     private void printGrid(){
@@ -33,6 +47,13 @@ public class MyAgent extends AbstractPlayer{
 
     }
 
+    private Vector2d transformPixelToGridValues (Vector2d v){
+        int x = (int) v.x / 30;
+        int y = (int) v.y / 30;
+
+        return new Vector2d(x,y);
+    }
+
     private void generateStaticMap (StateObservation stateObs){
         createGridFromDimensions(stateObs);
         setWallPositions(stateObs);
@@ -42,8 +63,11 @@ public class MyAgent extends AbstractPlayer{
 
     private void createGridFromDimensions (StateObservation stateObs){
         Dimension worldDimension = stateObs.getWorldDimension();
+
         int xLength = worldDimension.width / 30;
         int yLength = worldDimension.height / 30;
+
+        System.out.println("Las dimensiones son: " + xLength + " x " + yLength);
 
         myGrid = new char [xLength][yLength];
     }
@@ -53,45 +77,35 @@ public class MyAgent extends AbstractPlayer{
         ArrayList<Observation> walls = stateObs.getImmovablePositions()[0];
 
         for (Observation wall : walls){
-            int wallX = ((int)wall.position.x) / 30;
-            int wallY = ((int)wall.position.y) / 30;
+            Vector2d wallGridCords = transformPixelToGridValues(wall.position);
 
-            myGrid[wallX][wallY] = 'w';
+            myGrid[(int)wallGridCords.x][(int)wallGridCords.y] = 'w';
         }
 
     }
 
     private void setDoorPosition(StateObservation stateObs){
        Observation observation = stateObs.getPortalsPositions()[0].get(0);
-       Vector2d doorPos = observation.position;
+       doorPosition = transformPixelToGridValues(observation.position);
 
-        int x = (int) doorPos.x / 30;
-        int y = (int) doorPos.y / 30;
+        myGrid[(int) doorPosition.x][(int) doorPosition.y] = 'd';
 
-        myGrid[x][y] = 'd';
-        doorPosition = new Vector2d(x,y);
+        System.out.println("La puerta está en: " + doorPosition.x + " x " + doorPosition.y);
     }
 
     private void setGemPositions(StateObservation stateObs){
+        if (stateObs.getResourcesPositions() == null)
+            return;
+
         ArrayList<Observation>  gems = stateObs.getResourcesPositions()[0];
 
         for (Observation gem : gems){
-            int gemX = ((int)gem.position.x) / 30;
-            int gemY = ((int)gem.position.y) / 30;
+            Vector2d gemPos = transformPixelToGridValues(gem.position);
 
-            myGrid[gemX][gemY] = 'g';
+            myGrid[(int)gemPos.x][(int)gemPos.y] = 'g';
 
         }
     }
 
-    @Override
-    public ACTIONS act(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
-        if (plan.isEmpty()) {
-            Vector2d current = stateObs.getAvatarPosition();
-            AStar searchAlgorithm = new AStar(myGrid, current, doorPosition);
-            plan = searchAlgorithm.computePlan();
-        }
-        return ACTIONS.ACTION_NIL;
-    }
 }
 
