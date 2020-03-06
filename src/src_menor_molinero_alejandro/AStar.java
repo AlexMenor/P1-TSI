@@ -5,20 +5,25 @@ import tools.Vector2d;
 
 import java.util.*;
 
+enum Orientation {
+    UP, DOWN, RIGHT, LEFT
+}
 
 public class AStar {
     private char [][] grid;
     private Vector2d start;
     private Vector2d end;
+    private Orientation initialOrientation;
 
-    AStar(char[][] grid, Vector2d start, Vector2d end){
+    AStar(char[][] grid, Vector2d start, Vector2d initialOrientation, Vector2d end){
         this.grid = grid;
         this.start = start;
         this.end = end;
+        this.initialOrientation = vector2dToOrientation(initialOrientation);
     }
 
     public Stack<ACTIONS> computePlan(){
-        Node firstNode = new Node(start, grid, 0, end, null, null);
+        Node firstNode = new Node(start, grid, 0, end, null, null, initialOrientation);
 
         PriorityQueue<Node> frontier = new PriorityQueue<>();
         Set<Node> explored = new HashSet<>();
@@ -53,6 +58,20 @@ public class AStar {
        return toReturn;
     }
 
+    private Orientation vector2dToOrientation (Vector2d vectOrientation) {
+        double x = vectOrientation.x;
+        double y = vectOrientation.y;
+
+        if (x > 0)
+            return Orientation.RIGHT;
+        else if (x < 0)
+            return Orientation.LEFT;
+        else if (y > 0)
+            return Orientation.UP;
+        else
+            return Orientation.DOWN;
+    }
+
 }
 
 class Node implements Comparable<Node>{
@@ -63,14 +82,16 @@ class Node implements Comparable<Node>{
     private Vector2d end;
     private Node father;
     private ACTIONS lastAction;
+    private Orientation orientation;
 
-    Node(Vector2d position, char [][] grid, int coste, Vector2d end, Node father, ACTIONS lastAction){
+    Node(Vector2d position, char [][] grid, int coste, Vector2d end, Node father, ACTIONS lastAction, Orientation orientation){
         this.position = position;
         this.grid = grid;
         this.coste = coste;
         this.end = end;
         this.lastAction = lastAction;
         this.father = father;
+        this.orientation = orientation;
         computeManhattan();
     }
 
@@ -111,19 +132,32 @@ class Node implements Comparable<Node>{
     private Node generateNode(ACTIONS action){
         int x = (int)position.x;
         int y = (int)position.y;
+        Orientation newOrientation = this.orientation;
 
         switch (action) {
             case ACTION_RIGHT:
-                x++;
+                if (orientation == Orientation.RIGHT)
+                    x++;
+                else
+                    newOrientation = Orientation.RIGHT;
                 break;
             case ACTION_LEFT:
-                x--;
+                if (orientation == Orientation.LEFT)
+                    x--;
+                else
+                    newOrientation = Orientation.LEFT;
                 break;
             case ACTION_UP:
-                y--;
+                if (orientation == Orientation.DOWN)
+                    y--;
+                else
+                    newOrientation = Orientation.DOWN;
                 break;
             case ACTION_DOWN:
-                y++;
+                if (orientation == Orientation.UP)
+                    y++;
+                else
+                    newOrientation = Orientation.UP;
                 break;
         }
 
@@ -133,7 +167,7 @@ class Node implements Comparable<Node>{
                 return null;
 
             Vector2d newPosition = new Vector2d(x,y);
-            Node newNode = new Node(newPosition, grid, coste + 1, end, this, action);
+            Node newNode = new Node(newPosition, grid, coste + 1, end, this, action, newOrientation);
 
             return newNode;
     }
@@ -160,9 +194,11 @@ class Node implements Comparable<Node>{
 
     @Override
     public int hashCode() {
-        int [] arr = new int[2];
+        int [] arr = new int[4];
         arr[0] = (int) position.x;
         arr[1] = (int) position.y;
+        arr[2] = orientation == Orientation.RIGHT ? 1 : orientation == Orientation.LEFT ? -1 : 0;
+        arr[3] = orientation == Orientation.UP ? 1 : orientation == Orientation.DOWN ? -1 : 0;
         return Arrays.hashCode(arr);
     }
 }

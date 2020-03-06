@@ -22,13 +22,16 @@ public class MyAgent extends AbstractPlayer{
         generateStaticMap(stateObs);
 
         printGrid();
+
     }
 
     @Override
     public ACTIONS act(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
         if (plan == null) {
-            Vector2d current = transformPixelToGridValues(stateObs.getAvatarPosition());
-            AStar searchAlgorithm = new AStar(myGrid, current, doorPosition);
+            Vector2d currentPosition = transformPixelToGridValues(stateObs.getAvatarPosition());
+            Vector2d currentOrientation = stateObs.getAvatarOrientation();
+
+            AStar searchAlgorithm = new AStar(myGrid, currentPosition, currentOrientation, doorPosition);
             plan = searchAlgorithm.computePlan();
         }
         else if (plan.isEmpty())
