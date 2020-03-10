@@ -14,8 +14,11 @@ import java.util.Stack;
 public class MyAgent extends AbstractPlayer{
 
     private char [][] myGrid;
-    Stack<ACTIONS> plan;
-    Vector2d doorPosition;
+    private int [][] heatMap;
+    private Stack<ACTIONS> plan;
+    private Vector2d doorPosition;
+    private int xLen;
+    private int yLen;
 
     public MyAgent(StateObservation stateObs, ElapsedCpuTimer elapsedTimer){
 
@@ -27,6 +30,7 @@ public class MyAgent extends AbstractPlayer{
 
     @Override
     public ACTIONS act(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
+        /*
         if (plan == null) {
             Vector2d currentPosition = transformPixelToGridValues(stateObs.getAvatarPosition());
             Vector2d currentOrientation = stateObs.getAvatarOrientation();
@@ -38,6 +42,49 @@ public class MyAgent extends AbstractPlayer{
             return ACTIONS.ACTION_NIL;
 
         return plan.pop();
+        */
+        genHeatMap(getEnemyPositions(stateObs));
+        Vector2d currentPosition = transformPixelToGridValues(stateObs.getAvatarPosition());
+        ACTIONS action = getSafeAction(currentPosition);
+        return action;
+    }
+
+    private ACTIONS getSafeAction(Vector2d currentPosition){
+        int x = (int)currentPosition.x;
+        int y = (int)currentPosition.y;
+        int currentBest = getIfPossible(x,y);
+        ACTIONS bestAction = ACTIONS.ACTION_NIL;
+
+        int right = getIfPossible(x + 1, y);
+        int left = getIfPossible(x - 1, y);
+        int up = getIfPossible(x , y-1);
+        int down = getIfPossible(x, y+ 1);
+
+        if (right < currentBest){
+           currentBest = right;
+           bestAction = ACTIONS.ACTION_RIGHT;
+        }
+        if (left < currentBest){
+            currentBest = left;
+            bestAction = ACTIONS.ACTION_LEFT;
+        }
+        if (up < currentBest){
+            currentBest = up;
+            bestAction = ACTIONS.ACTION_UP;
+        }
+        if (down < currentBest){
+            currentBest = down;
+            bestAction = ACTIONS.ACTION_DOWN;
+        }
+
+        return bestAction;
+    }
+
+    private int getIfPossible(int x, int y){
+        if(x >= 0 && x < xLen && y >= 0 && y < yLen)
+            return heatMap[x][y];
+        else
+            return Integer.MAX_VALUE;
     }
 
     private void printGrid(){
@@ -47,8 +94,18 @@ public class MyAgent extends AbstractPlayer{
                 System.out.print(myGrid[i][j] + " ");
             System.out.println();
         }
+    }
+
+    void printHeatMap(){
+        for (int i = 0 ; i < heatMap.length ; i++) {
+            for (int j = 0; j < heatMap[i].length; j++)
+                System.out.print(heatMap[i][j] + " ");
+            System.out.println();
+        }
 
     }
+
+
 
     private Vector2d transformPixelToGridValues (Vector2d v){
         int x = (int) v.x / 30;
@@ -58,24 +115,27 @@ public class MyAgent extends AbstractPlayer{
     }
 
     private void generateStaticMap (StateObservation stateObs){
+        setWorldDimensions(stateObs);
         createGridFromDimensions(stateObs);
         setWallPositions(stateObs);
         setGemPositions(stateObs);
         setDoorPosition(stateObs);
     }
 
-    private void createGridFromDimensions (StateObservation stateObs){
+    private void setWorldDimensions(StateObservation stateObs) {
         Dimension worldDimension = stateObs.getWorldDimension();
 
-        int xLength = worldDimension.width / 30;
-        int yLength = worldDimension.height / 30;
+        xLen = worldDimension.width / 30;
+        yLen = worldDimension.height / 30;
+    }
 
-        System.out.println("Las dimensiones son: " + xLength + " x " + yLength);
-
-        myGrid = new char [xLength][yLength];
+    private void createGridFromDimensions (StateObservation stateObs){
+        myGrid = new char [xLen][yLen];
     }
 
     private void setWallPositions (StateObservation stateObs){
+        if (stateObs.getImmovablePositions() == null)
+            return;
 
         ArrayList<Observation> walls = stateObs.getImmovablePositions()[0];
 
@@ -88,6 +148,9 @@ public class MyAgent extends AbstractPlayer{
     }
 
     private void setDoorPosition(StateObservation stateObs){
+        if (stateObs.getPortalsPositions() == null)
+            return;
+
        Observation observation = stateObs.getPortalsPositions()[0].get(0);
        doorPosition = transformPixelToGridValues(observation.position);
 
@@ -108,6 +171,66 @@ public class MyAgent extends AbstractPlayer{
             myGrid[(int)gemPos.x][(int)gemPos.y] = 'g';
 
         }
+    }
+
+    private void genHeatMap(ArrayList<Vector2d> enemies) {
+
+        heatMap = new int[xLen][yLen];
+
+        for (int i = 0 ; i < xLen ; i++){
+            for(int j = 0 ; j < yLen ; j++){
+                if(myGrid[i][j] == 'w') {
+                    heatMap[i][j] = 100;
+                    radiusOfWall(i,j);
+                }
+            }
+        }
+
+        for (Vector2d enemy: enemies) {
+            int x = (int) enemy.x;
+            int y = (int) enemy.y;
+            heatMap[x][y] += 30;
+            radiusOfEnemy(x,y);
+        }
+
+    }
+
+    private void radiusOfWall(int x, int y){
+        writeIfPossible(x+1,y, 10);
+        writeIfPossible(x-1,y, 10);
+        writeIfPossible(x,y+1, 10);
+        writeIfPossible(x,y-1, 10);
+    }
+
+    private void radiusOfEnemy(int x,int y){
+        int RADIUS = 4;
+        int base = heatMap[x][y];
+
+        for (int i = 0 ; i < RADIUS ; i++){
+            int value = base - 3*i;
+            writeIfPossible(x+i,y, value);
+            writeIfPossible(x-i,y, value);
+            writeIfPossible(x,y+i, value);
+            writeIfPossible(x,y-i, value);
+        }
+    }
+
+    private void writeIfPossible (int x, int y, int value){
+        if (x >= 0 && x < xLen && y >= 0 && y < yLen)
+            heatMap[x][y] = heatMap[x][y] + value;
+    }
+
+    private ArrayList<Vector2d> getEnemyPositions(StateObservation stateObs){
+        if (stateObs.getNPCPositions() == null)
+            return null;
+        ArrayList<Vector2d> enemyPositions = new ArrayList<>();
+
+        ArrayList<Observation> enemies = stateObs.getNPCPositions()[0];
+
+        for (Observation enemy : enemies)
+            enemyPositions.add(transformPixelToGridValues(enemy.position));
+
+        return enemyPositions;
     }
 
 }
