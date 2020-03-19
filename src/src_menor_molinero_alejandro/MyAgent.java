@@ -16,37 +16,51 @@ public class MyAgent extends AbstractPlayer{
     private char [][] myGrid;
     private int [][] heatMap;
     private Stack<ACTIONS> plan;
-    private Vector2d doorPosition;
     private int xLen;
     private int yLen;
+    private ArrayList<Vector2d> goals;
+    private ArrayList<Integer> goalOrder;
+    private int currentGoal = 0;
 
     public MyAgent(StateObservation stateObs, ElapsedCpuTimer elapsedTimer){
 
         generateStaticMap(stateObs);
 
-        printGrid();
+        setGoals(stateObs);
+        Vector2d currentPosition = transformPixelToGridValues(stateObs.getAvatarPosition());
+
+        Planner planner = new Planner(goals, currentPosition, myGrid);
+
+        goalOrder = planner.getPlan();
 
     }
 
     @Override
     public ACTIONS act(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
-        /*
         if (plan == null) {
             Vector2d currentPosition = transformPixelToGridValues(stateObs.getAvatarPosition());
             Vector2d currentOrientation = stateObs.getAvatarOrientation();
 
-            AStar searchAlgorithm = new AStar(myGrid, currentPosition, currentOrientation, doorPosition);
+            AStar searchAlgorithm = new AStar(myGrid, currentPosition, currentOrientation, goals.get(currentGoal));
             plan = searchAlgorithm.computePlan();
         }
-        else if (plan.isEmpty())
-            return ACTIONS.ACTION_NIL;
+        else if (plan.isEmpty()) {
+            currentGoal++;
+            int order = goalOrder.get(currentGoal);
+            Vector2d currentPosition = transformPixelToGridValues(stateObs.getAvatarPosition());
+            Vector2d currentOrientation = stateObs.getAvatarOrientation();
+            AStar searchAlgorithm = new AStar(myGrid, currentPosition, currentOrientation, goals.get(order - 1));
+            plan = searchAlgorithm.computePlan();
+        }
+
 
         return plan.pop();
-        */
+
+        /*
         genHeatMap(getEnemyPositions(stateObs));
         Vector2d currentPosition = transformPixelToGridValues(stateObs.getAvatarPosition());
         ACTIONS action = getSafeAction(currentPosition);
-        return action;
+         */
     }
 
     private ACTIONS getSafeAction(Vector2d currentPosition){
@@ -106,6 +120,19 @@ public class MyAgent extends AbstractPlayer{
     }
 
 
+    private void setGoals (StateObservation stateObs){
+        this.goals = new ArrayList<>();
+        if (stateObs.getResourcesPositions() != null){
+            ArrayList<Observation> gems = stateObs.getResourcesPositions()[0];
+            for (Observation gem : gems){
+                this.goals.add(transformPixelToGridValues(gem.position));
+            }
+        }
+
+        if (stateObs.getPortalsPositions() != null){
+            this.goals.add(transformPixelToGridValues(stateObs.getPortalsPositions()[0].get(0).position));
+        }
+    }
 
     private Vector2d transformPixelToGridValues (Vector2d v){
         int x = (int) v.x / 30;
@@ -119,7 +146,6 @@ public class MyAgent extends AbstractPlayer{
         createGridFromDimensions(stateObs);
         setWallPositions(stateObs);
         setGemPositions(stateObs);
-        setDoorPosition(stateObs);
     }
 
     private void setWorldDimensions(StateObservation stateObs) {
@@ -145,18 +171,6 @@ public class MyAgent extends AbstractPlayer{
             myGrid[(int)wallGridCords.x][(int)wallGridCords.y] = 'w';
         }
 
-    }
-
-    private void setDoorPosition(StateObservation stateObs){
-        if (stateObs.getPortalsPositions() == null)
-            return;
-
-       Observation observation = stateObs.getPortalsPositions()[0].get(0);
-       doorPosition = transformPixelToGridValues(observation.position);
-
-        myGrid[(int) doorPosition.x][(int) doorPosition.y] = 'd';
-
-        System.out.println("La puerta está en: " + doorPosition.x + " x " + doorPosition.y);
     }
 
     private void setGemPositions(StateObservation stateObs){
@@ -186,13 +200,15 @@ public class MyAgent extends AbstractPlayer{
             }
         }
 
-        for (Vector2d enemy: enemies) {
-            int x = (int) enemy.x;
-            int y = (int) enemy.y;
-            heatMap[x][y] += 30;
-            radiusOfEnemy(x,y);
-        }
+        if (enemies != null) {
 
+            for (Vector2d enemy : enemies) {
+                int x = (int) enemy.x;
+                int y = (int) enemy.y;
+                heatMap[x][y] += 30;
+                radiusOfEnemy(x, y);
+            }
+        }
     }
 
     private void radiusOfWall(int x, int y){
