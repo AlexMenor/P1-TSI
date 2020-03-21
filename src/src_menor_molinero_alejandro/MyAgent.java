@@ -37,42 +37,56 @@ public class MyAgent extends AbstractPlayer{
 
     @Override
     public ACTIONS act(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
-        if (plan == null) {
+        ACTIONS action;
+        if(!goals.isEmpty()) {
+            if (plan == null) {
+                Vector2d currentPosition = transformPixelToGridValues(stateObs.getAvatarPosition());
+                Vector2d currentOrientation = stateObs.getAvatarOrientation();
+
+                AStar searchAlgorithm = new AStar(myGrid, currentPosition, currentOrientation, goals.get(currentGoal));
+                plan = searchAlgorithm.computePlan();
+            } else if (plan.isEmpty()) {
+                int order = goalOrder.get(currentGoal);
+                Vector2d currentPosition = transformPixelToGridValues(stateObs.getAvatarPosition());
+                Vector2d currentOrientation = stateObs.getAvatarOrientation();
+                AStar searchAlgorithm = new AStar(myGrid, currentPosition, currentOrientation, goals.get(order - 1));
+                plan = searchAlgorithm.computePlan();
+            }
+            genHeatMap(getEnemyPositions(stateObs));
+            printHeatMap();
             Vector2d currentPosition = transformPixelToGridValues(stateObs.getAvatarPosition());
-            Vector2d currentOrientation = stateObs.getAvatarOrientation();
+            action = getSafeAction(currentPosition);
 
-            AStar searchAlgorithm = new AStar(myGrid, currentPosition, currentOrientation, goals.get(currentGoal));
-            plan = searchAlgorithm.computePlan();
+            if(action == ACTIONS.ACTION_NIL) {
+                action = plan.pop();
+                if (plan.isEmpty())
+                    currentGoal++;
+            }
+            else {
+                plan.clear();
+            }
         }
-        else if (plan.isEmpty()) {
-            currentGoal++;
-            int order = goalOrder.get(currentGoal);
+        else {
+            genHeatMap(getEnemyPositions(stateObs));
             Vector2d currentPosition = transformPixelToGridValues(stateObs.getAvatarPosition());
-            Vector2d currentOrientation = stateObs.getAvatarOrientation();
-            AStar searchAlgorithm = new AStar(myGrid, currentPosition, currentOrientation, goals.get(order - 1));
-            plan = searchAlgorithm.computePlan();
+            action = getSafeAction(currentPosition);
         }
 
 
-        return plan.pop();
+        return action;
 
-        /*
-        genHeatMap(getEnemyPositions(stateObs));
-        Vector2d currentPosition = transformPixelToGridValues(stateObs.getAvatarPosition());
-        ACTIONS action = getSafeAction(currentPosition);
-         */
     }
 
     private ACTIONS getSafeAction(Vector2d currentPosition){
         int x = (int)currentPosition.x;
         int y = (int)currentPosition.y;
-        int currentBest = getIfPossible(x,y);
+        double currentBest = getIfPossible(x,y);
         ACTIONS bestAction = ACTIONS.ACTION_NIL;
 
-        int right = getIfPossible(x + 1, y);
-        int left = getIfPossible(x - 1, y);
-        int up = getIfPossible(x , y-1);
-        int down = getIfPossible(x, y+ 1);
+        double right = getRight(x,y);
+        double left = getLeft(x,y);
+        double up = getUp(x,y);
+        double down= getDown(x,y);
 
         if (right < currentBest){
            currentBest = right;
@@ -92,6 +106,91 @@ public class MyAgent extends AbstractPlayer{
         }
 
         return bestAction;
+    }
+
+    private double getRight(int x,int y){
+       int RADIUS = 4;
+
+       int i = 1;
+
+       double toReturn = 0;
+
+       while (i < RADIUS){
+           int current = getIfPossible(x+i,y);
+           if(current == Integer.MAX_VALUE){
+               if (toReturn == 0)
+                   return current;
+               else
+                   return current / (i-1);
+           }
+           toReturn += current;
+           i++;
+       }
+
+       return toReturn / RADIUS;
+    }
+    private double getLeft(int x,int y){
+        int RADIUS = 4;
+
+        int i = 1;
+
+        double toReturn = 0;
+
+        while (i < RADIUS){
+            int current = getIfPossible(x-i,y);
+            if(current == Integer.MAX_VALUE){
+                if (toReturn == 0)
+                    return current;
+                else
+                    return current / (i-1);
+            }
+            toReturn += current;
+            i++;
+        }
+
+        return toReturn / RADIUS;
+    }
+    private double getUp(int x,int y){
+        int RADIUS = 4;
+
+        int i = 1;
+
+        double toReturn = 0;
+
+        while (i < RADIUS){
+            int current = getIfPossible(x,y-i);
+            if(current == Integer.MAX_VALUE){
+                if (toReturn == 0)
+                    return current;
+                else
+                    return current / (i-1);
+            }
+            toReturn += current;
+            i++;
+        }
+
+        return toReturn / RADIUS;
+    }
+    private double getDown(int x,int y){
+        int RADIUS = 4;
+
+        int i = 1;
+
+        double toReturn = 0;
+
+        while (i < RADIUS){
+            int current = getIfPossible(x,y+i);
+            if(current == Integer.MAX_VALUE){
+                if (toReturn == 0)
+                    return current;
+                else
+                    return current / (i-1);
+            }
+            toReturn += current;
+            i++;
+        }
+
+        return toReturn / RADIUS;
     }
 
     private int getIfPossible(int x, int y){
@@ -194,8 +293,8 @@ public class MyAgent extends AbstractPlayer{
         for (int i = 0 ; i < xLen ; i++){
             for(int j = 0 ; j < yLen ; j++){
                 if(myGrid[i][j] == 'w') {
-                    heatMap[i][j] = 100;
-                    radiusOfWall(i,j);
+                    heatMap[i][j] = 40;
+                    //radiusOfWall(i,j);
                 }
             }
         }
@@ -212,19 +311,23 @@ public class MyAgent extends AbstractPlayer{
     }
 
     private void radiusOfWall(int x, int y){
-        writeIfPossible(x+1,y, 10);
-        writeIfPossible(x-1,y, 10);
-        writeIfPossible(x,y+1, 10);
-        writeIfPossible(x,y-1, 10);
+        writeIfPossible(x+1,y, 2);
+        writeIfPossible(x-1,y, 2);
+        writeIfPossible(x,y+1, 2);
+        writeIfPossible(x,y-1, 2);
     }
 
     private void radiusOfEnemy(int x,int y){
-        int RADIUS = 4;
+        int RADIUS = 10;
         int base = heatMap[x][y];
 
         for (int i = 0 ; i < RADIUS ; i++){
             int value = base - 3*i;
             writeIfPossible(x+i,y, value);
+            writeIfPossible(x+i,y+i, value);
+            writeIfPossible(x-i,y+i, value);
+            writeIfPossible(x+i,y-i, value);
+            writeIfPossible(x-i,y-i, value);
             writeIfPossible(x-i,y, value);
             writeIfPossible(x,y+i, value);
             writeIfPossible(x,y-i, value);

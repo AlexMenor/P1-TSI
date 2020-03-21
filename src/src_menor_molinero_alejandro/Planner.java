@@ -66,6 +66,7 @@ public class Planner {
             }
         }
 
+        order.remove(0);
         return order;
 
     }
