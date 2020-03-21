@@ -21,9 +21,11 @@ public class MyAgent extends AbstractPlayer{
     private ArrayList<Vector2d> goals;
     private ArrayList<Integer> goalOrder;
     private int currentGoal = 0;
+    private boolean existEnemies = false;
 
     public MyAgent(StateObservation stateObs, ElapsedCpuTimer elapsedTimer){
 
+        existEnemies = stateObs.getNPCPositions() != null;
         generateStaticMap(stateObs);
 
         setGoals(stateObs);
@@ -38,7 +40,22 @@ public class MyAgent extends AbstractPlayer{
     @Override
     public ACTIONS act(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
         ACTIONS action;
-        if(!goals.isEmpty()) {
+        /* Level 5 */
+        if (goals.size() == 1 && !existEnemies) {
+            if (plan == null) {
+                Vector2d currentPosition = transformPixelToGridValues(stateObs.getAvatarPosition());
+                Vector2d currentOrientation = stateObs.getAvatarOrientation();
+
+                AStar searchAlgorithm = new AStar(myGrid, currentPosition, currentOrientation, goals.get(0));
+                plan = searchAlgorithm.computePlan();
+            }
+            if(plan.isEmpty())
+                action = ACTIONS.ACTION_NIL;
+            else
+                action = plan.pop();
+        }
+        /* Level 6 & 9 */
+        else if(goals.size() > 1) {
             if (plan == null) {
                 int order = goalOrder.get(currentGoal);
                 Vector2d currentPosition = transformPixelToGridValues(stateObs.getAvatarPosition());
@@ -54,7 +71,6 @@ public class MyAgent extends AbstractPlayer{
                 plan = searchAlgorithm.computePlan();
             }
             genHeatMap(getEnemyPositions(stateObs));
-            printHeatMap();
             Vector2d currentPosition = transformPixelToGridValues(stateObs.getAvatarPosition());
             action = getSafeAction(currentPosition);
 
@@ -67,6 +83,7 @@ public class MyAgent extends AbstractPlayer{
                 plan.clear();
             }
         }
+        /* Level 7 & 8 */
         else {
             genHeatMap(getEnemyPositions(stateObs));
             Vector2d currentPosition = transformPixelToGridValues(stateObs.getAvatarPosition());
