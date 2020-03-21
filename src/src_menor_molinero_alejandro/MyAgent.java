@@ -40,10 +40,11 @@ public class MyAgent extends AbstractPlayer{
         ACTIONS action;
         if(!goals.isEmpty()) {
             if (plan == null) {
+                int order = goalOrder.get(currentGoal);
                 Vector2d currentPosition = transformPixelToGridValues(stateObs.getAvatarPosition());
                 Vector2d currentOrientation = stateObs.getAvatarOrientation();
 
-                AStar searchAlgorithm = new AStar(myGrid, currentPosition, currentOrientation, goals.get(currentGoal));
+                AStar searchAlgorithm = new AStar(myGrid, currentPosition, currentOrientation, goals.get(order - 1));
                 plan = searchAlgorithm.computePlan();
             } else if (plan.isEmpty()) {
                 int order = goalOrder.get(currentGoal);
