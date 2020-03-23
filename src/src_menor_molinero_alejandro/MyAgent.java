@@ -11,6 +11,10 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.Stack;
 
+enum Behaviour {
+    ROUTE, COLLECT, REACT, COLLECT_AND_REACT
+}
+
 public class MyAgent extends AbstractPlayer{
 
     private char [][] myGrid;
@@ -22,6 +26,7 @@ public class MyAgent extends AbstractPlayer{
     private ArrayList<Integer> goalOrder;
     private int currentGoal = 0;
     private boolean existEnemies = false;
+    private Behaviour behaviour;
 
     public MyAgent(StateObservation stateObs, ElapsedCpuTimer elapsedTimer){
 
@@ -32,16 +37,30 @@ public class MyAgent extends AbstractPlayer{
         Vector2d currentPosition = transformPixelToGridValues(stateObs.getAvatarPosition());
 
         Planner planner = new Planner(goals, currentPosition, myGrid);
+        setBehaviour();
 
         goalOrder = planner.getPlan();
 
+    }
+
+    private void setBehaviour(){
+           if (goals.size() == 1 && !existEnemies) {
+               this.behaviour = Behaviour.ROUTE;
+           }
+           else if(goals.size() > 1 && !existEnemies) {
+               this.behaviour = Behaviour.COLLECT;
+           }
+           else if (goals.size() > 1 && existEnemies)
+               this.behaviour = Behaviour.COLLECT_AND_REACT;
+           else
+               this.behaviour = Behaviour.REACT;
     }
 
     @Override
     public ACTIONS act(StateObservation stateObs, ElapsedCpuTimer elapsedTimer) {
         ACTIONS action;
         /* Level 5 */
-        if (goals.size() == 1 && !existEnemies) {
+        if (this.behaviour == Behaviour.ROUTE) {
             if (plan == null) {
                 Vector2d currentPosition = transformPixelToGridValues(stateObs.getAvatarPosition());
                 Vector2d currentOrientation = stateObs.getAvatarOrientation();
@@ -54,19 +73,25 @@ public class MyAgent extends AbstractPlayer{
             else
                 action = plan.pop();
         }
-        /* Level 6 & 9 */
-        else if(goals.size() > 1) {
-            if (plan == null) {
+        else if (this.behaviour == Behaviour.COLLECT){
+            if (plan == null || plan.isEmpty()) {
+                int order = goalOrder.get(currentGoal);
+                Vector2d currentPosition = transformPixelToGridValues(stateObs.getAvatarPosition());
+                Vector2d currentOrientation = stateObs.getAvatarOrientation();
+                AStar searchAlgorithm = new AStar(myGrid, currentPosition, currentOrientation, goals.get(order - 1));
+                plan = searchAlgorithm.computePlan();
+            }
+            action = plan.pop();
+            if (plan.isEmpty())
+                currentGoal++;
+
+        }
+        else if(this.behaviour == Behaviour.COLLECT_AND_REACT) {
+            if (plan == null || plan.isEmpty()) {
                 int order = goalOrder.get(currentGoal);
                 Vector2d currentPosition = transformPixelToGridValues(stateObs.getAvatarPosition());
                 Vector2d currentOrientation = stateObs.getAvatarOrientation();
 
-                AStar searchAlgorithm = new AStar(myGrid, currentPosition, currentOrientation, goals.get(order - 1));
-                plan = searchAlgorithm.computePlan();
-            } else if (plan.isEmpty()) {
-                int order = goalOrder.get(currentGoal);
-                Vector2d currentPosition = transformPixelToGridValues(stateObs.getAvatarPosition());
-                Vector2d currentOrientation = stateObs.getAvatarOrientation();
                 AStar searchAlgorithm = new AStar(myGrid, currentPosition, currentOrientation, goals.get(order - 1));
                 plan = searchAlgorithm.computePlan();
             }
@@ -101,7 +126,7 @@ public class MyAgent extends AbstractPlayer{
         double currentBest = getIfPossible(x,y);
         ACTIONS bestAction = ACTIONS.ACTION_NIL;
 
-        int RADIUS = 5;
+        int RADIUS = 3;
 
         double right = getRight(x,y, RADIUS);
         double left = getLeft(x,y, RADIUS);
@@ -228,9 +253,10 @@ public class MyAgent extends AbstractPlayer{
     void printHeatMap(){
         for (int i = 0 ; i < heatMap.length ; i++) {
             for (int j = 0; j < heatMap[i].length; j++)
-                System.out.print(heatMap[i][j] + " ");
+                System.out.print(heatMap[i][j] + "\t");
             System.out.println();
         }
+        System.out.println();
 
     }
 
@@ -304,13 +330,13 @@ public class MyAgent extends AbstractPlayer{
 
     private void genHeatMap(ArrayList<Vector2d> enemies) {
 
+
         heatMap = new int[xLen][yLen];
 
         for (int i = 0 ; i < xLen ; i++){
             for(int j = 0 ; j < yLen ; j++){
                 if(myGrid[i][j] == 'w') {
                     heatMap[i][j] = 40;
-                    //radiusOfWall(i,j);
                 }
             }
         }
@@ -320,34 +346,65 @@ public class MyAgent extends AbstractPlayer{
             for (Vector2d enemy : enemies) {
                 int x = (int) enemy.x;
                 int y = (int) enemy.y;
+
                 heatMap[x][y] += 30;
                 radiusOfEnemy(x, y);
+
+                if(this.behaviour == Behaviour.REACT)
+                    distanceToEnemy(x,y);
             }
         }
     }
 
-    private void radiusOfWall(int x, int y){
-        writeIfPossible(x+1,y, 2);
-        writeIfPossible(x-1,y, 2);
-        writeIfPossible(x,y+1, 2);
-        writeIfPossible(x,y-1, 2);
-    }
 
     private void radiusOfEnemy(int x,int y){
-        int RADIUS = 5;
+        int RADIUS = 3;
         int base = heatMap[x][y];
 
         for (int i = 0 ; i < RADIUS ; i++){
-            int value = base - 3*i;
+            int value = base - 3*i*i;
+            if(value <0)
+                value = 0;
+            // LADOS UP DOWN
             writeIfPossible(x+i,y, value);
+            writeIfPossible(x-i,y, value);
+            writeIfPossible(x,y+i, value);
+            writeIfPossible(x,y-i, value);
+
+            // DIAGONALES
             writeIfPossible(x+i,y+i, value);
             writeIfPossible(x-i,y+i, value);
             writeIfPossible(x+i,y-i, value);
             writeIfPossible(x-i,y-i, value);
-            writeIfPossible(x-i,y, value);
-            writeIfPossible(x,y+i, value);
-            writeIfPossible(x,y-i, value);
+
+            if (i <= RADIUS / 2) {
+                // REST
+                writeIfPossible(x+i,y+i+i, value);
+                writeIfPossible(x-i,y+i+i, value);
+                writeIfPossible(x+i,y-i-i, value);
+                writeIfPossible(x-i,y-i-i, value);
+
+                writeIfPossible(x+i+i, y+i, value);
+                writeIfPossible(x+i+i, y-i, value);
+                writeIfPossible(x-i-i, y+i, value);
+                writeIfPossible(x-i-i, y-i, value);
+            }
+
         }
+    }
+
+    private void distanceToEnemy (int x, int y) {
+        int maxDistance = xLen + yLen;
+        for (int i = 0 ; i < xLen ; i++){
+            for(int j = 0 ; j < yLen ; j++)
+                writeIfPossible(i, j, maxDistance - manhattanDistance(x,y,i,j));
+        }
+    }
+
+    private int manhattanDistance (int x, int y, int i, int j) {
+        int xDiff = (int) Math.abs(x - i);
+        int yDiff = (int) Math.abs(y - j);
+        return xDiff + yDiff;
     }
 
     private void writeIfPossible (int x, int y, int value){
