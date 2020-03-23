@@ -101,10 +101,12 @@ public class MyAgent extends AbstractPlayer{
         double currentBest = getIfPossible(x,y);
         ACTIONS bestAction = ACTIONS.ACTION_NIL;
 
-        double right = getRight(x,y);
-        double left = getLeft(x,y);
-        double up = getUp(x,y);
-        double down= getDown(x,y);
+        int RADIUS = 5;
+
+        double right = getRight(x,y, RADIUS);
+        double left = getLeft(x,y, RADIUS);
+        double up = getUp(x,y, RADIUS);
+        double down= getDown(x,y, RADIUS);
 
         if (right < currentBest){
            currentBest = right;
@@ -126,8 +128,7 @@ public class MyAgent extends AbstractPlayer{
         return bestAction;
     }
 
-    private double getRight(int x,int y){
-       int RADIUS = 4;
+    private double getRight(int x,int y, int RADIUS){
 
        int i = 1;
 
@@ -147,8 +148,7 @@ public class MyAgent extends AbstractPlayer{
 
        return toReturn / RADIUS;
     }
-    private double getLeft(int x,int y){
-        int RADIUS = 4;
+    private double getLeft(int x,int y, int RADIUS){
 
         int i = 1;
 
@@ -168,8 +168,7 @@ public class MyAgent extends AbstractPlayer{
 
         return toReturn / RADIUS;
     }
-    private double getUp(int x,int y){
-        int RADIUS = 4;
+    private double getUp(int x,int y, int RADIUS){
 
         int i = 1;
 
@@ -189,8 +188,7 @@ public class MyAgent extends AbstractPlayer{
 
         return toReturn / RADIUS;
     }
-    private double getDown(int x,int y){
-        int RADIUS = 4;
+    private double getDown(int x,int y, int RADIUS){
 
         int i = 1;
 
@@ -336,7 +334,7 @@ public class MyAgent extends AbstractPlayer{
     }
 
     private void radiusOfEnemy(int x,int y){
-        int RADIUS = 10;
+        int RADIUS = 5;
         int base = heatMap[x][y];
 
         for (int i = 0 ; i < RADIUS ; i++){

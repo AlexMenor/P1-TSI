@@ -44,14 +44,18 @@ public class Planner {
 
     private ArrayList<Integer> localSearch(){
         ArrayList<Integer> order = genRandomOrder();
+
+
         /*
         ArrayList<Integer> order = new ArrayList<>();
 
         for (int i = 0 ; i < goals.size() + 1 ; i++)
             order.add(i);
 
-         */
+        System.out.println(cost(order));
 
+         */
+        /*
 
         for (int i = 1 ; i < order.size() - 2 ; i++){
             for (int j = i + 1 ; j < order.size() - 1 ; j++){
@@ -63,6 +67,40 @@ public class Planner {
                     i = 0;
                     break;
                 }
+            }
+        }
+         */
+
+        if (order.size() - 2 <= 0)
+            return order;
+
+        Random rand = new Random();
+
+        int iteration = 0;
+        int MAX_ITERATIONS = 5000;
+
+        boolean notFoundAnythingBetter = false;
+
+        while (!notFoundAnythingBetter) {
+            notFoundAnythingBetter = true;
+
+            while (iteration < MAX_ITERATIONS && notFoundAnythingBetter) {
+                int i = rand.nextInt(order.size() - 2) + 1;
+                int j = rand.nextInt(order.size() - 2) + 1;
+
+                if (i != j) {
+
+                    int inc = computeInc(i, j, order);
+                    if (inc < 0) {
+                        int aux = order.get(i);
+                        order.set(i, order.get(j));
+                        order.set(j, aux);
+                        notFoundAnythingBetter = false;
+                    }
+
+                    iteration++;
+                }
+
             }
         }
 
@@ -93,6 +131,16 @@ public class Planner {
         int pointBehind = order.get(i-1);
 
         return distanceMatrix[point][pointForward] + distanceMatrix[point][pointBehind];
+    }
+
+    private int cost(ArrayList<Integer> order){
+        int cost = 0;
+
+        for (int i = 0  ; i < order.size() - 1 ; i++){
+            cost += distanceMatrix[order.get(i)][order.get(i +1)];
+        }
+
+        return cost;
     }
 
 
