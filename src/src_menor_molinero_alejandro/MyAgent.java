@@ -241,25 +241,6 @@ public class MyAgent extends AbstractPlayer{
             return Integer.MAX_VALUE;
     }
 
-    private void printGrid(){
-
-        for (int i = 0 ; i < myGrid.length ; i++) {
-            for (int j = 0; j < myGrid[i].length; j++)
-                System.out.print(myGrid[i][j] + " ");
-            System.out.println();
-        }
-    }
-
-    void printHeatMap(){
-        for (int i = 0 ; i < heatMap.length ; i++) {
-            for (int j = 0; j < heatMap[i].length; j++)
-                System.out.print(heatMap[i][j] + "\t");
-            System.out.println();
-        }
-        System.out.println();
-
-    }
-
 
     private void setGoals (StateObservation stateObs){
         this.goals = new ArrayList<>();
